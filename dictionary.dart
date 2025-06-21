@@ -1,3 +1,5 @@
+import 'dart:math';
+
 class Dictionary {
   List<dynamic> titles;
   List<List<dynamic>> data;
@@ -14,10 +16,10 @@ class Dictionary {
         if (dataToTokenDic[titles[j]] == null) {
           if (data[i][j].runtimeType == String) {
             dataToTokenDic.addAll({
-              titles[j]: {data[i][j]: 0}
+              titles[j]: {data[i][j]: 0.0}
             });
             tokenToDataDic.addAll({
-              titles[j]: {0: data[i][j]}
+              titles[j]: {0.0: data[i][j]}
             });
           } else {
             dataToTokenDic.addAll({
@@ -45,14 +47,7 @@ class Dictionary {
     if (withNormalize) {
       dataToTokenDic.forEach(
         (key, value) {
-          double maxValue = -100000;
-          value.forEach(
-            (key, value) {
-              if (value > maxValue) {
-                maxValue = value;
-              }
-            },
-          );
+          double maxValue = value.values.reduce(max);
           List keys = value.keys.toList();
           for (var i = 0; i < keys.length; i++) {
             double temp = value[keys[i]]!;
@@ -75,20 +70,9 @@ class Dictionary {
       throw Exception('unknown word');
     }
     if (withNormalize) {
-      double maxValue = -100000;
-      tokenToDataDic[title]!.forEach(
-        (key, value) {
-          if (key > maxValue) {
-            maxValue = key;
-          }
-        },
-      );
+      double maxValue = tokenToDataDic[title]!.keys.reduce(max);
       return tokenToDataDic[title]![token * maxValue];
     }
     return tokenToDataDic[title]![token];
   }
 }
-
-//TODO:FJALKSJDFLKJSDFLKJSDKLF
-// Assuming `temp` is the normalized value and you want to get the original
-// double readValue = (temp * (maxValue - minValue)) + minValue;

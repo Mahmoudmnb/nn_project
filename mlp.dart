@@ -72,7 +72,7 @@ class MLP {
     required this.epoch,
     this.testInputs,
     this.testLabels,
-  }) : assert(trainInputs.length == trainLabels.length) {
+  }) : assert(trainInputs.length == trainLabels.length && layers.isNotEmpty) {
     layers.insert(
         0,
         Layer(
@@ -182,7 +182,7 @@ class MLP {
     return output;
   }
 
-  void train({Function()? callBack}) {
+  void train({Function(int epoch)? callBack}) {
     for (var e = 0; e < epoch; e++) {
       double trainTotalLoss = 0;
       int trainCorrect = 0;
@@ -234,9 +234,12 @@ class MLP {
         double testAvgLoss = testTotalLoss / testInputs!.length;
         double testAccuracy = testCorrect / testInputs!.length;
         resultText +=
-            '      |      trainLoss = ${testAvgLoss.toStringAsFixed(4)}, trainAccuracy = ${testAccuracy.toStringAsFixed(4)}';
+            '      |      testLoss = ${testAvgLoss.toStringAsFixed(4)}, testAccuracy = ${testAccuracy.toStringAsFixed(4)}';
       }
       print(resultText);
+      if (callBack != null) {
+        callBack(e);
+      }
     }
   }
 
