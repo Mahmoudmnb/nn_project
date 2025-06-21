@@ -1,3 +1,4 @@
+import 'dart:io';
 import 'dart:math';
 
 enum AF { sigFun, rlu }
@@ -57,27 +58,32 @@ class Layer {
 
 class MLP {
   List<Layer> layers;
-  List<List<double>> inputs;
-  List<double> labels;
+  List<List<double>> trainInputs;
+  List<double> trainLabels;
+  List<List<double>>? testInputs;
+  List<double>? testLabels;
   double lr;
   int epoch;
   MLP({
     required this.layers,
-    required this.inputs,
-    required this.labels,
+    required this.trainInputs,
+    required this.trainLabels,
     required this.lr,
     required this.epoch,
-  }) : assert(inputs.length == labels.length) {
+    this.testInputs,
+    this.testLabels,
+  }) : assert(trainInputs.length == trainLabels.length) {
     layers.insert(
         0,
         Layer(
-            numOfNeurons: inputs.first.length, activationFunction: AF.sigFun));
+            numOfNeurons: trainInputs.first.length,
+            activationFunction: AF.sigFun));
     for (var i = 0; i < layers.length; i++) {
       Layer layer = layers[i];
       List<Node> n = [];
       if (i == 0) {
-        for (var i = 0; i < inputs[0].length; i++) {
-          n.add(InputNeuron(input: inputs[0][i]));
+        for (var i = 0; i < trainInputs[0].length; i++) {
+          n.add(InputNeuron(input: trainInputs[0][i]));
         }
         layer.neurons = n;
         continue;
@@ -105,8 +111,9 @@ class MLP {
   }
 
   void feedInput(int batchIndex) {
-    for (var i = 0; i < inputs[batchIndex].length; i++) {
-      (layers.first.neurons[i] as InputNeuron).input = inputs[batchIndex][i];
+    for (var i = 0; i < trainInputs[batchIndex].length; i++) {
+      (layers.first.neurons[i] as InputNeuron).input =
+          trainInputs[batchIndex][i];
     }
   }
 
@@ -162,7 +169,7 @@ class MLP {
   double getOutputLayerLoss(int patchIndex, int neuronNumber) {
     double actualOutput =
         feedForward(neuronNumber: neuronNumber, layerIndex: layers.length - 1);
-    return labels[patchIndex] - actualOutput;
+    return trainLabels[patchIndex] - actualOutput;
   }
 
   List<double> modelOutput({required int batchIndex}) {
@@ -175,16 +182,107 @@ class MLP {
     return output;
   }
 
-  void train() {
+  void train({Function()? callBack}) {
     for (var e = 0; e < epoch; e++) {
-      int trainAcc = 0;
-      for (var i = 0; i < inputs.length; i++) {
+      double trainTotalLoss = 0;
+      int trainCorrect = 0;
+      double testTotalLoss = 0;
+      int testCorrect = 0;
+      //* trainDs
+      for (var i = 0; i < trainInputs.length; i++) {
         feedInput(i);
         backpropagation(i);
-        double output = modelOutput(batchIndex: i).first;
-        if (output == labels[i]) {
-          trainAcc++;
+
+        double output = modelOutput(batchIndex: i)
+            .first
+            .clamp(1e-7, 1 - 1e-7); // clamp to avoid log(0)
+        int prediction = output >= 0.5 ? 1 : 0;
+        double actual = trainLabels[i];
+        // Binary Cross-Entropy Loss
+        trainTotalLoss +=
+            -(actual * log(output) + (1 - actual) * log(1 - output));
+
+        // Accuracy
+        if (prediction == actual) {
+          trainCorrect++;
         }
+      }
+      //* testDs
+      if (testInputs != null && testLabels != null) {
+        for (var i = 0; i < testInputs!.length; i++) {
+          feedInput(i);
+          double output = modelOutput(batchIndex: i)
+              .first
+              .clamp(1e-7, 1 - 1e-7); // clamp to avoid log(0)
+          int prediction = output >= 0.5 ? 1 : 0;
+          double actual = testLabels![i];
+          // Binary Cross-Entropy Loss
+          testTotalLoss +=
+              -(actual * log(output) + (1 - actual) * log(1 - output));
+          // Accuracy
+          if (prediction == actual) {
+            testCorrect++;
+          }
+        }
+      }
+      String resultText = '';
+      double trainAvgLoss = trainTotalLoss / trainInputs.length;
+      double trainAccuracy = trainCorrect / trainInputs.length;
+      resultText =
+          'Epoch $e: trainLoss = ${trainAvgLoss.toStringAsFixed(4)}, trainAccuracy = ${trainAccuracy.toStringAsFixed(4)}';
+      if (testInputs != null && testLabels != null) {
+        double testAvgLoss = testTotalLoss / testInputs!.length;
+        double testAccuracy = testCorrect / testInputs!.length;
+        resultText +=
+            '      |      trainLoss = ${testAvgLoss.toStringAsFixed(4)}, trainAccuracy = ${testAccuracy.toStringAsFixed(4)}';
+      }
+      print(resultText);
+    }
+  }
+
+  void saveWights(String path) {
+    String text = '';
+    for (var l = 1; l < layers.length; l++) {
+      for (var n = 0; n < layers[l].numOfNeurons; n++) {
+        for (var i = 0; i < layers[l].neurons[n].weights.length; i++) {
+          text += layers[l].neurons[n].weights[i].toString() + ' ';
+        }
+        text += (layers[l].neurons[n] as Neuron).biasWeight.toString();
+        if (n < layers[l].numOfNeurons - 1) {
+          text += '\t';
+        }
+      }
+      if (l < layers.length - 1) {
+        text += '\n';
+      }
+    }
+    File(path).writeAsStringSync(text);
+  }
+
+  void loadWeights(String path) {
+    String text = File(path).readAsStringSync();
+    List<String> layerStrings = text.trim().split('\n');
+    for (int l = 1; l < layers.length; l++) {
+      if (l - 1 >= layerStrings.length) {
+        throw Exception(
+            'Mismatch in saved layers and current model structure.');
+      }
+      List<String> neuronStrings = layerStrings[l - 1].split('\t');
+      for (int n = 0; n < layers[l].numOfNeurons; n++) {
+        if (n >= neuronStrings.length) {
+          throw Exception(
+              'Mismatch in saved neurons and model structure in layer $l.');
+        }
+        List<String> weightStrings = neuronStrings[n].trim().split(' ');
+        Neuron neuron = layers[l].neurons[n] as Neuron;
+        if (weightStrings.length != neuron.weights.length + 1) {
+          throw Exception(
+              'Mismatch in number of weights for neuron $n in layer $l. Expected ${neuron.weights.length + 1}, found ${weightStrings.length}.');
+        }
+        for (int w = 0; w < neuron.weights.length; w++) {
+          neuron.weights[w] = double.parse(weightStrings[w]);
+        }
+        neuron.biasWeight = double.parse(weightStrings.last);
       }
     }
   }
