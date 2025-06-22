@@ -192,21 +192,17 @@ class MLP {
       for (var i = 0; i < trainInputs.length; i++) {
         feedInput(i);
         backpropagation(i);
-
         double output = modelOutput(batchIndex: i)
             .first
             .clamp(1e-7, 1 - 1e-7); // clamp to avoid log(0)
         int prediction = output >= 0.5 ? 1 : 0;
         double actual = trainLabels[i];
-        // Binary Cross-Entropy Loss
-        trainTotalLoss +=
-            -(actual * log(output) + (1 - actual) * log(1 - output));
-
-        // Accuracy
+        trainTotalLoss += pow((actual - prediction), 2);
         if (prediction == actual) {
           trainCorrect++;
         }
       }
+      trainTotalLoss /= trainInputs.length;
       //* testDs
       if (testInputs != null && testLabels != null) {
         for (var i = 0; i < testInputs!.length; i++) {
@@ -216,25 +212,21 @@ class MLP {
               .clamp(1e-7, 1 - 1e-7); // clamp to avoid log(0)
           int prediction = output >= 0.5 ? 1 : 0;
           double actual = testLabels![i];
-          // Binary Cross-Entropy Loss
-          testTotalLoss +=
-              -(actual * log(output) + (1 - actual) * log(1 - output));
-          // Accuracy
+          testTotalLoss += pow((actual - prediction), 2);
           if (prediction == actual) {
             testCorrect++;
           }
         }
+        testTotalLoss /= testInputs!.length;
       }
       String resultText = '';
-      double trainAvgLoss = trainTotalLoss / trainInputs.length;
       double trainAccuracy = trainCorrect / trainInputs.length;
       resultText =
-          'Epoch $e: trainLoss = ${trainAvgLoss.toStringAsFixed(4)}, trainAccuracy = ${trainAccuracy.toStringAsFixed(4)}';
+          'Epoch $e: trainLoss = ${trainTotalLoss}, trainAccuracy = ${trainAccuracy}';
       if (testInputs != null && testLabels != null) {
-        double testAvgLoss = testTotalLoss / testInputs!.length;
         double testAccuracy = testCorrect / testInputs!.length;
         resultText +=
-            '      |      testLoss = ${testAvgLoss.toStringAsFixed(4)}, testAccuracy = ${testAccuracy.toStringAsFixed(4)}';
+            '      |      testLoss = ${testTotalLoss}, testAccuracy = ${testAccuracy}';
       }
       print(resultText);
       if (callBack != null) {

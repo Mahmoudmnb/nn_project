@@ -48,10 +48,11 @@ class Dictionary {
       dataToTokenDic.forEach(
         (key, value) {
           double maxValue = value.values.reduce(max);
+          double minValue = value.values.reduce(min);
           List keys = value.keys.toList();
           for (var i = 0; i < keys.length; i++) {
             double temp = value[keys[i]]!;
-            temp /= maxValue;
+            temp = (temp - minValue) / (maxValue - minValue);
             value[keys[i]] = temp;
           }
         },
@@ -71,7 +72,9 @@ class Dictionary {
     }
     if (withNormalize) {
       double maxValue = tokenToDataDic[title]!.keys.reduce(max);
-      return tokenToDataDic[title]![token * maxValue];
+      double minValue = tokenToDataDic[title]!.keys.reduce(min);
+      token = token * (maxValue - minValue) + minValue;
+      return tokenToDataDic[title]![token];
     }
     return tokenToDataDic[title]![token];
   }
