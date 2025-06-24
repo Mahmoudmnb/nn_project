@@ -4,7 +4,7 @@ import 'dart:math';
 enum AF { sigFun, rlu }
 
 double sigFun(double y) {
-  return 1 / (1 + pow(e, -y));
+  return (1 / (1 + pow(e, -y)));
 }
 
 double rluFun(double y) {
@@ -78,12 +78,12 @@ class MLP {
         Layer(
             numOfNeurons: trainInputs.first.length,
             activationFunction: AF.sigFun));
-    for (var i = 0; i < layers.length; i++) {
-      Layer layer = layers[i];
+    for (var l = 0; l < layers.length; l++) {
+      Layer layer = layers[l];
       List<Node> n = [];
-      if (i == 0) {
-        for (var i = 0; i < trainInputs[0].length; i++) {
-          n.add(InputNeuron(input: trainInputs[0][i]));
+      if (l == 0) {
+        for (var i = 0; i < trainInputs.first.length; i++) {
+          n.add(InputNeuron(input: trainInputs.first[i]));
         }
         layer.neurons = n;
         continue;
@@ -100,7 +100,7 @@ class MLP {
           throw Exception('undefined activation function');
       }
       for (var j = 0; j < layer.numOfNeurons; j++) {
-        n.add(Neuron(inputs: layers[i - 1].neurons, activationFunction: acFun));
+        n.add(Neuron(inputs: layers[l - 1].neurons, activationFunction: acFun));
       }
       layer.neurons = n;
     }
@@ -110,10 +110,9 @@ class MLP {
     return layers[layerIndex].neurons[neuronNumber].output;
   }
 
-  void feedInput(int batchIndex) {
-    for (var i = 0; i < trainInputs[batchIndex].length; i++) {
-      (layers.first.neurons[i] as InputNeuron).input =
-          trainInputs[batchIndex][i];
+  void feedInput(List data) {
+    for (var i = 0; i < data.length; i++) {
+      (layers.first.neurons[i] as InputNeuron).input = data[i];
     }
   }
 
@@ -138,7 +137,7 @@ class MLP {
       for (var i = layers.length - 1; i > 1; i--) {
         for (var j = 0; j < layers[i].numOfNeurons; j++) {
           Neuron currentNeuron = layers[i].neurons[j] as Neuron;
-          List<Node> neuronInputs = (layers[i].neurons[j] as Neuron).inputs;
+          List<Node> neuronInputs = currentNeuron.inputs;
           for (var k = 0; k < neuronInputs.length; k++) {
             Neuron n = neuronInputs[k] as Neuron;
             n.d += currentNeuron.d * currentNeuron.weights[k];
@@ -146,9 +145,8 @@ class MLP {
         }
         Neuron firsNeuron = layers[i].neurons.first as Neuron;
         for (var l = 0; l < firsNeuron.inputs.length; l++) {
-          (firsNeuron.inputs[l] as Neuron).d *=
-              (firsNeuron.inputs[l] as Neuron).output *
-                  (1 - (firsNeuron.inputs[l] as Neuron).output);
+          Neuron n = firsNeuron.inputs[l] as Neuron;
+          n.d *= n.output * (1 - n.output);
         }
       }
     }
@@ -172,9 +170,9 @@ class MLP {
     return trainLabels[patchIndex] - actualOutput;
   }
 
-  List<double> modelOutput({required int batchIndex}) {
+  List<double> modelOutput({required List data}) {
     List<double> output = [];
-    feedInput(batchIndex);
+    feedInput(data);
     for (var i = 0; i < layers.last.numOfNeurons; i++) {
       double o = feedForward(layerIndex: layers.length - 1, neuronNumber: i);
       output.add(o);
@@ -190,27 +188,28 @@ class MLP {
       int testCorrect = 0;
       //* trainDs
       for (var i = 0; i < trainInputs.length; i++) {
-        feedInput(i);
+        feedInput(trainInputs[i]);
         backpropagation(i);
-        double output = modelOutput(batchIndex: i)
-            .first
-            .clamp(1e-7, 1 - 1e-7); // clamp to avoid log(0)
-        int prediction = output >= 0.5 ? 1 : 0;
+        double output = modelOutput(data: trainInputs[i]).first;
         double actual = trainLabels[i];
-        trainTotalLoss += pow((actual - prediction), 2);
+        trainTotalLoss += pow((actual - output), 2);
+        int prediction = output >= 0.5 ? 1 : 0;
         if (prediction == actual) {
           trainCorrect++;
         }
       }
       trainTotalLoss /= trainInputs.length;
+      double trainAccuracy = trainCorrect / trainInputs.length;
+      String resultText = '';
+      resultText =
+          'Epoch $e: trainLoss = ${trainTotalLoss}, trainAccuracy = ${trainAccuracy}';
+
       //* testDs
       if (testInputs != null && testLabels != null) {
         for (var i = 0; i < testInputs!.length; i++) {
-          feedInput(i);
-          double output = modelOutput(batchIndex: i)
-              .first
-              .clamp(1e-7, 1 - 1e-7); // clamp to avoid log(0)
-          int prediction = output >= 0.5 ? 1 : 0;
+          feedInput(testInputs![i]);
+          List output = modelOutput(data: testInputs![i]);
+          int prediction = output.first >= 0.5 ? 1 : 0;
           double actual = testLabels![i];
           testTotalLoss += pow((actual - prediction), 2);
           if (prediction == actual) {
@@ -218,12 +217,6 @@ class MLP {
           }
         }
         testTotalLoss /= testInputs!.length;
-      }
-      String resultText = '';
-      double trainAccuracy = trainCorrect / trainInputs.length;
-      resultText =
-          'Epoch $e: trainLoss = ${trainTotalLoss}, trainAccuracy = ${trainAccuracy}';
-      if (testInputs != null && testLabels != null) {
         double testAccuracy = testCorrect / testInputs!.length;
         resultText +=
             '      |      testLoss = ${testTotalLoss}, testAccuracy = ${testAccuracy}';

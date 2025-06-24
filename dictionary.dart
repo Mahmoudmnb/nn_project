@@ -4,7 +4,6 @@ class Dictionary {
   List<dynamic> titles;
   List<List<dynamic>> data;
   Map<String, Map<dynamic, double>> dataToTokenDic = {};
-  Map<String, Map<double, dynamic>> tokenToDataDic = {};
   bool withNormalize;
   Dictionary({
     required this.data,
@@ -13,32 +12,23 @@ class Dictionary {
   }) {
     for (var i = 0; i < data.length; i++) {
       for (var j = 0; j < data[i].length; j++) {
-        if (dataToTokenDic[titles[j]] == null) {
-          if (data[i][j].runtimeType == String) {
+        if (!dataToTokenDic.containsKey(titles[j])) {
+          if (data[i][j] is String) {
             dataToTokenDic.addAll({
               titles[j]: {data[i][j]: 0.0}
-            });
-            tokenToDataDic.addAll({
-              titles[j]: {0.0: data[i][j]}
             });
           } else {
             dataToTokenDic.addAll({
               titles[j]: {data[i][j]: data[i][j] + 0.0}
             });
-            tokenToDataDic.addAll({
-              titles[j]: {data[i][j] + 0.0: data[i][j]}
-            });
           }
         } else {
           if (!dataToTokenDic[titles[j]]!.containsKey(data[i][j])) {
-            if (data[i][j].runtimeType == String) {
+            if (data[i][j] is String) {
               dataToTokenDic[titles[j]]!.addAll(
                   {data[i][j]: dataToTokenDic[titles[j]]!.length + 0.0});
-              tokenToDataDic[titles[j]]!.addAll(
-                  {tokenToDataDic[titles[j]]!.length + 0.0: data[i][j]});
             } else {
               dataToTokenDic[titles[j]]!.addAll({data[i][j]: data[i][j] + 0.0});
-              tokenToDataDic[titles[j]]!.addAll({data[i][j] + 0.0: data[i][j]});
             }
           }
         }
@@ -61,21 +51,23 @@ class Dictionary {
   }
   double toToken({required String title, required dynamic element}) {
     if (dataToTokenDic[title] == null) {
-      throw Exception('unknown word');
+      throw Exception('unknown title');
+    } else if (dataToTokenDic[title]![element] == null) {
+      throw Exception('unknown element');
     }
-    return dataToTokenDic[title]![element] ?? -1;
+    return dataToTokenDic[title]![element]!;
   }
 
   dynamic fromToken({required String title, required dynamic token}) {
-    if (tokenToDataDic[title] == null) {
+    if (dataToTokenDic[title] == null) {
       throw Exception('unknown word');
     }
-    if (withNormalize) {
-      double maxValue = tokenToDataDic[title]!.keys.reduce(max);
-      double minValue = tokenToDataDic[title]!.keys.reduce(min);
-      token = token * (maxValue - minValue) + minValue;
-      return tokenToDataDic[title]![token];
-    }
-    return tokenToDataDic[title]![token];
+    var item;
+    dataToTokenDic[title]!.forEach((key, value) {
+      if (value == token) {
+        item = key;
+      }
+    });
+    return item;
   }
 }
