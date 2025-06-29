@@ -8,13 +8,19 @@
       "languageVersion": "2.12"
     },
     {
+      "name": "path",
+      "rootUri": "file:///home/mahmoud-bannan/.pub-cache/hosted/pub.dev/path-1.9.1",
+      "packageUri": "lib/",
+      "languageVersion": "3.4"
+    },
+    {
       "name": "NN_project",
       "rootUri": "../",
       "packageUri": "lib/",
       "languageVersion": "2.12"
     }
   ],
-  "generated": "2025-06-21T20:21:45.026017Z",
+  "generated": "2025-06-28T04:45:18.944981Z",
   "generator": "pub",
   "generatorVersion": "3.5.4",
   "flutterRoot": "file:///home/mahmoud-bannan/flutter/flutter",

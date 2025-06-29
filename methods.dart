@@ -47,6 +47,7 @@ Map<String, List> prepareElmanDs({
   required List titles,
   required List data,
   required Dictionary dic,
+  required int labelIndex,
 }) {
   List<List<double>> train_ds = [];
   List<List<double>> test_ds = [];
@@ -55,7 +56,7 @@ Map<String, List> prepareElmanDs({
   for (var i = 0; i < (data.length * 0.8).floor(); i++) {
     List<double> temp = [];
     for (var j = 0; j < data[i].length; j++) {
-      if (j == data[i].length - 1) {
+      if (j == labelIndex) {
         train_labels.add(dic.toToken(title: titles[j], element: data[i][j]));
       }
       temp.add(dic.toToken(title: titles[j], element: data[i][j]));
@@ -65,7 +66,7 @@ Map<String, List> prepareElmanDs({
   for (var i = (data.length * 0.8).floor(); i < data.length; i++) {
     List<double> temp = [];
     for (var j = 0; j < data[i].length; j++) {
-      if (j == data[i].length - 1) {
+      if (j == labelIndex) {
         test_labels.add(dic.toToken(title: titles[j], element: data[i][j]));
       }
       temp.add(dic.toToken(title: titles[j], element: data[i][j]));

@@ -58,16 +58,31 @@ class Dictionary {
     return dataToTokenDic[title]![element]!;
   }
 
-  dynamic fromToken({required String title, required dynamic token}) {
+  dynamic fromToken(
+      {required String title,
+      required dynamic token,
+      bool decodeFormDic = true}) {
     if (dataToTokenDic[title] == null) {
       throw Exception('unknown word');
     }
-    var item;
-    dataToTokenDic[title]!.forEach((key, value) {
-      if (value == token) {
-        item = key;
-      }
-    });
-    return item;
+    if (decodeFormDic) {
+      var item;
+      dataToTokenDic[title]!.forEach((key, value) {
+        if (value == token) {
+          item = key;
+        }
+      });
+      return item;
+    } else {
+      List<double> c = [];
+      dataToTokenDic[title]!.forEach(
+        (key, value) {
+          c.add(double.parse(key.toString()));
+        },
+      );
+      double maxValue = c.reduce(max);
+      double minValue = c.reduce(min);
+      return token * (maxValue - minValue) + minValue;
+    }
   }
 }

@@ -211,7 +211,7 @@ class MLP {
           List output = modelOutput(data: testInputs![i]);
           int prediction = output.first >= 0.5 ? 1 : 0;
           double actual = testLabels![i];
-          testTotalLoss += pow((actual - prediction), 2);
+          testTotalLoss += pow((actual - output.first), 2);
           if (prediction == actual) {
             testCorrect++;
           }

@@ -64,7 +64,9 @@ class Elman {
   List<double>? testLabels;
   double lr;
   int epoch;
+  int step;
   Elman({
+    required this.step,
     required this.layers,
     required this.trainInputs,
     required this.trainLabels,
@@ -114,15 +116,19 @@ class Elman {
     return layers[layerIndex].neurons[neuronNumber].output;
   }
 
-  void feedInput(List data) {
-    int index = data.length;
-    for (var i = 0; i < layers[layers.length - 2].numOfNeurons; i++) {
-      double out = layers[layers.length - 2].neurons[i].output;
-      (layers.first.neurons[index] as InputNeuron).input = out;
-      index++;
-    }
-    for (var i = 0; i < data.length; i++) {
-      (layers.first.neurons[i] as InputNeuron).input = data[i];
+  void feedInput(List<List> data) {
+    for (var s = 0; s < data.length; s++) {
+      int index = data[s].length;
+      int hiddenLayerIndex = layers.length - 2;
+      Layer inputLayer = layers.first;
+      for (var i = 0; i < layers[hiddenLayerIndex].numOfNeurons; i++) {
+        double out = layers[hiddenLayerIndex].neurons[i].output;
+        (inputLayer.neurons[index] as InputNeuron).input = out;
+        index++;
+      }
+      for (var i = 0; i < data[s].length; i++) {
+        (inputLayer.neurons[i] as InputNeuron).input = data[s][i];
+      }
     }
   }
 
@@ -180,9 +186,8 @@ class Elman {
     return trainLabels[patchIndex] - actualOutput;
   }
 
-  List<double> modelOutput({required List data}) {
+  List<double> modelOutput() {
     List<double> output = [];
-    feedInput(data);
     for (var i = 0; i < layers.last.numOfNeurons; i++) {
       double o = feedForward(layerIndex: layers.length - 1, neuronNumber: i);
       output.add(o);
@@ -197,14 +202,17 @@ class Elman {
       double testTotalLoss = 0;
       int testCorrect = 0;
       //* trainDs
-      for (var i = 0; i < trainInputs.length; i++) {
-        feedInput(trainInputs[i]);
-        backpropagation(i);
-        double output = modelOutput(data: trainInputs[i]).first;
-        double actual = trainLabels[i];
+      for (var i = 0; i < trainInputs.length - step; i++) {
+        List<List> batch = [];
+        for (var s = i; s < i + step; s++) {
+          batch.add(trainInputs[s]);
+        }
+        feedInput(batch);
+        backpropagation(i + step - 1);
+        double output = modelOutput().first;
+        double actual = trainLabels[i + step - 1];
         trainTotalLoss += pow((actual - output), 2);
-        int prediction = output >= 0.5 ? 1 : 0;
-        if ((prediction - actual).abs() < 0.001) {
+        if ((output - actual).abs() < 0.001) {
           trainCorrect++;
         }
       }
@@ -214,15 +222,18 @@ class Elman {
       resultText =
           'Epoch $e: trainLoss = ${trainTotalLoss}, trainAccuracy = ${trainAccuracy}';
 
-      //* testDs
+      // //* testDs
       if (testInputs != null && testLabels != null) {
-        for (var i = 0; i < testInputs!.length; i++) {
-          feedInput(testInputs![i]);
-          List output = modelOutput(data: testInputs![i]);
-          int prediction = output.first >= 0.5 ? 1 : 0;
-          double actual = testLabels![i];
-          testTotalLoss += pow((actual - prediction), 2);
-          if ((prediction - actual).abs() < 0.001) {
+        for (var i = 0; i < testInputs!.length - step; i++) {
+          List<List> batch = [];
+          for (var s = i; s < i + step; s++) {
+            batch.add(testInputs![s]);
+          }
+          feedInput(batch);
+          double output = modelOutput().first;
+          double actual = testLabels![i + step - 1];
+          testTotalLoss += pow((actual - output), 2);
+          if ((output - actual).abs() < 0.001) {
             testCorrect++;
           }
         }
